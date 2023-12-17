@@ -18,39 +18,42 @@ def send_message(message_body):
     )
     print(f"Sent message with MessageId: {response['MessageId']}")
 
-def receive_messages():
-    while True:
-        # Receive message from SQS queue
-        response = sqs.receive_message(
-            QueueUrl=queue_url,
-            AttributeNames=[
-                'All'
-            ],
-            MaxNumberOfMessages=1,
-            MessageAttributeNames=[
-                'All'
-            ],
-            VisibilityTimeout=0,
-            WaitTimeSeconds=0
-        )
+def receive_message():    
+    # Receive message from SQS queue
+    response = sqs.receive_message(
+        QueueUrl=queue_url,
+        AttributeNames=[
+            'All'
+        ],
+        MaxNumberOfMessages=1,
+        MessageAttributeNames=[
+            'All'
+        ],
+        VisibilityTimeout=0,
+        WaitTimeSeconds=0
+    )
 
-        messages = response.get('Messages', [])
+    messages = response.get('Messages', [])
 
-        if not messages:
-            print("No messages in the queue.")
-            break
+    if not messages:
+        print("No messages in the queue.")
+        return
 
-        message = messages[0]
-        receipt_handle = message['ReceiptHandle']
-        message_body = message['Body']
+    message = messages[0]
+    
+    message_body = message['Body']
 
-        print(f"Received message: {message_body}")
+    print(f"Received message: {message_body}")
 
-        # Process the message here...
+    return message
 
-        # Delete the message from the queue after processing
-        sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+def delete_msg(event):
+    try:
+        receipt_handle = event['ReceiptHandle']
+        sqs.delete_message(QueueUrl=queue_url,ReceiptHandle=receipt_handle)
         print(f"Deleted message with ReceiptHandle: {receipt_handle}")
+    except Exception as err:
+        print(f"Error while deleting message from sqs {err}")
 
 if __name__ == '__main__':
     # Example usage
@@ -60,4 +63,8 @@ if __name__ == '__main__':
     time.sleep(2)
 
     # Receive messages from the queue one by one
-    receive_messages()
+    while True:
+        message = receive_message()
+        print(f"Message received is {message['Body']}")
+        #process the msg
+        delete_msg(message)
